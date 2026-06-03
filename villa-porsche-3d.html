@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Villa Prestige · Porsche GT3 RS Pourpre</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      overflow: hidden;
+      background: #000;
+      font-family: 'Trebuchet MS', Georgia, serif;
+    }
+
+    canvas { display: block; }
+
+    /* ─── Header overlay ─────────────────────────────────────────── */
+    #header {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      padding: 28px 36px 60px;
+      background: linear-gradient(180deg, rgba(0,0,0,.75) 0%, transparent 100%);
+      pointer-events: none;
+      z-index: 10;
+    }
+    #header h1 {
+      font-size: 2.6rem;
+      font-weight: 200;
+      letter-spacing: 10px;
+      text-transform: uppercase;
+      color: #c9a84c;
+      text-shadow: 0 0 40px rgba(201,168,76,.55);
+    }
+    #header p {
+      margin-top: 6px;
+      font-size: .8rem;
+      letter-spacing: 5px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,.42);
+    }
+
+    /* ─── Bottom hint ────────────────────────────────────────────── */
+    #hint {
+      position: fixed;
+      bottom: 22px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: rgba(255,255,255,.28);
+      font-size: .72rem;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    /* ─── Badge ──────────────────────────────────────────────────── */
+    #badge {
+      position: fixed;
+      bottom: 28px; right: 28px;
+      width: 64px; height: 64px;
+      border-radius: 50%;
+      border: 1px solid rgba(201,168,76,.4);
+      display: flex; align-items: center; justify-content: center;
+      color: #c9a84c;
+      font-size: .55rem;
+      letter-spacing: 2px;
+      text-align: center;
+      line-height: 1.4;
+      text-transform: uppercase;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    /* ─── Loading screen ─────────────────────────────────────────── */
+    #loader {
+      position: fixed; inset: 0;
+      background: #020408;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 22px;
+      z-index: 100;
+      transition: opacity 1.2s ease;
+    }
+    #loader span {
+      color: #c9a84c;
+      font-size: .9rem;
+      letter-spacing: 6px;
+      text-transform: uppercase;
+      animation: blink 1.8s ease-in-out infinite;
+    }
+    #loader .bar-wrap {
+      width: 220px; height: 2px;
+      background: rgba(201,168,76,.15);
+    }
+    #loader .bar-fill {
+      height: 100%;
+      background: #c9a84c;
+      width: 0;
+      transition: width 0.4s ease;
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.25} }
+  </style>
+</head>
+<body>
+
+  <div id="loader">
+    <span>Chargement · Villa Prestige</span>
+    <div class="bar-wrap"><div class="bar-fill" id="bar"></div></div>
+  </div>
+
+  <div id="header">
+    <h1>Villa Prestige</h1>
+    <p>Porsche 911 GT3 RS &nbsp;·&nbsp; Pourpre Royal &nbsp;·&nbsp; Édition Exclusive</p>
+  </div>
+
+  <div id="hint">Glisser pour pivoter &nbsp;·&nbsp; Molette pour zoomer &nbsp;·&nbsp; Clic-droit pour déplacer</div>
+
+  <div id="badge">GT3<br>RS</div>
+
+  <!-- Three.js r134 -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/controls/OrbitControls.js"></script>
+
+  <script>
+  /* ================================================================
+     SCENE  INIT
+  ================================================================ */
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.15;
+  renderer.outputEncoding = THREE.sRGBEncoding;
+  renderer.physicallyCorrectLights = true;
+  document.body.appendChild(renderer.domElement);
+
+  const scene  = new THREE.Scene();
+  scene.fog    = new THREE.FogExp2(0x0a0515, 0.0045);
+
+  const camera = new THREE.PerspectiveCamera(52, innerWidth / innerHeight, 0.1, 1200);
+  camera.position.set(28, 14, 32);
+
+  const controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.target.set(0, 2, 4);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.04;
+  controls.minDistance   = 8;
+  controls.maxDistance   = 100;
+  controls.maxPolarAngle = Math.PI * 0.47;
+  controls.update();
+
+  /* ================================================================
+     PROGRESS  BAR  (purely cosmetic)
+  ================================================================ */
+  let prog = 0;
+  const bar = document.getElementById('bar');
+  const progInterval = setInterval(() => {
+    prog = Math.min(prog + Math.random() * 18, 95);
+    bar.style.width = prog + '%';
+  }, 150);
+
+  /* ================================================================
+     SKY  SHADER
+  ================================================================ */
+  const skyMesh = new THREE.Mesh(
+    new THREE.SphereGeometry(550, 32, 16),
+    new THREE.ShaderMaterial({
+      side: THREE.BackSide,
+      uniforms: {
+        uTop   : { value: new THREE.Color(0x02040e) },
+        uMid   : { value: new THREE.Color(0x1b0735) },
+        uHoriz : { value: new THREE.Color(0x6b1030) },
+        uSun   : { value: new THREE.Color(0xff5e00) },
+      },
+      vertexShader:`
+        varying vec3 vp;
+        void main(){ vp=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }
+      `,
+      fragmentShader:`
+        uniform vec3 uTop,uMid,uHoriz,uSun;
+        varying vec3 vp;
+        void main(){
+          float h=normalize(vp).y;
+          vec3 c;
+          if(h>0.25)      c=mix(uMid ,uTop  ,(h-.25)/.75);
+          else if(h>0.0)  c=mix(uHoriz,uMid ,h/.25);
+          else            c=mix(uSun  ,uHoriz,clamp(-h/.12,0.,1.));
+          float glow=max(0.,1.-abs(h)*9.)*0.38;
+          c=mix(c,uSun*1.8,glow);
+          gl_FragColor=vec4(c,1.);
+        }
+      `,
+    })
+  );
+  scene.add(skyMesh);
+
+  /* ================================================================
+     STARS
+  ================================================================ */
+  (function() {
+    const pts = [];
+    for(let i=0;i<3500;i++){
+      const th=Math.random()*Math.PI*2, ph=Math.acos(2*Math.random()-1);
+      const r=420+Math.random()*50;
+      pts.push(r*Math.sin(ph)*Math.cos(th), Math.abs(r*Math.cos(ph))+40, r*Math.sin(ph)*Math.sin(th));
+    }
+    const g=new THREE.BufferGeometry();
+    g.setAttribute('position',new THREE.Float32BufferAttribute(pts,3));
+    scene.add(new THREE.Points(g,new THREE.PointsMaterial({color:0xffffff,size:1.4,sizeAttenuation:true})));
+  })();
+
+  /* Moon */
+  const moonMesh = new THREE.Mesh(
+    new THREE.SphereGeometry(9,20,20),
+    new THREE.MeshStandardMaterial({color:0xfff8e0,emissive:0xbbaa88,emissiveIntensity:.35,roughness:.9})
+  );
+  moonMesh.position.set(-110,150,-280);
+  scene.add(moonMesh);
+
+  /* ================================================================
+     LIGHTS
+  ================================================================ */
+  scene.add(new THREE.AmbientLight(0x1a1030, 18));
+
+  const moonLight = new THREE.DirectionalLight(0x8899cc, 1.8);
+  moonLight.position.set(-110, 150, -280);
+  moonLight.castShadow = true;
+  moonLight.shadow.camera.near   = 1;
+  moonLight.shadow.camera.far    = 400;
+  moonLight.shadow.camera.left   = -80;
+  moonLight.shadow.camera.right  = 80;
+  moonLight.shadow.camera.top    = 80;
+  moonLight.shadow.camera.bottom = -80;
+  moonLight.shadow.mapSize.set(4096, 4096);
+  moonLight.shadow.bias = -0.0005;
+  scene.add(moonLight);
+
+  const warmFill = new THREE.DirectionalLight(0xff6622, 0.6);
+  warmFill.position.set(60, 20, 50);
+  scene.add(warmFill);
+
+  /* ================================================================
+     MATERIAL  LIBRARY
+  ================================================================ */
+  const MAT = {
+    concrete : new THREE.MeshStandardMaterial({color:0xe2ddd4,roughness:.72,metalness:.05}),
+    white    : new THREE.MeshStandardMaterial({color:0xf0ece3,roughness:.65,metalness:.05}),
+    dark     : new THREE.MeshStandardMaterial({color:0x181818,roughness:.85}),
+    darkGray : new THREE.MeshStandardMaterial({color:0x2e2e2e,roughness:.80}),
+    marble   : new THREE.MeshStandardMaterial({color:0xf5f0e8,roughness:.12,metalness:.08}),
+    glass    : new THREE.MeshPhysicalMaterial({color:0x223355,transparent:true,opacity:.3,roughness:.04,metalness:.05}),
+    glowWin  : new THREE.MeshStandardMaterial({color:0xffebd0,emissive:0xcc6600,emissiveIntensity:.9,roughness:.5}),
+    water    : new THREE.MeshPhysicalMaterial({color:0x004488,transparent:true,opacity:.72,roughness:.03,metalness:.3}),
+    grass    : new THREE.MeshStandardMaterial({color:0x244f14,roughness:.95}),
+    asphalt  : new THREE.MeshStandardMaterial({color:0x252525,roughness:.98}),
+    gold     : new THREE.MeshStandardMaterial({color:0xd4af37,roughness:.18,metalness:.92}),
+    chrome   : new THREE.MeshStandardMaterial({color:0xdddddd,roughness:.04,metalness:1.0}),
+    wood     : new THREE.MeshStandardMaterial({color:0x2c1f0e,roughness:.85}),
+
+    /* ─ Porsche ─ */
+    purple   : new THREE.MeshPhysicalMaterial({
+                  color:0x5c0099, roughness:.06, metalness:.92,
+                  clearcoat:1.0, clearcoatRoughness:.04,
+                }),
+    carBlack : new THREE.MeshStandardMaterial({color:0x0c0c0c,roughness:.35,metalness:.55}),
+    tire     : new THREE.MeshStandardMaterial({color:0x131313,roughness:.96}),
+    rim      : new THREE.MeshStandardMaterial({color:0xc2c2c2,roughness:.08,metalness:.98}),
+    caliper  : new THREE.MeshStandardMaterial({color:0xff4400,roughness:.45}),
+    headlamp : new THREE.MeshStandardMaterial({color:0xffffff,emissive:0xffeebb,emissiveIntensity:3.5}),
+    drl      : new THREE.MeshStandardMaterial({color:0xffffff,emissive:0xffffff,emissiveIntensity:4}),
+    tailamp  : new THREE.MeshStandardMaterial({color:0xff1100,emissive:0xff0000,emissiveIntensity:2.8}),
+    carGlass : new THREE.MeshPhysicalMaterial({color:0x1a2b44,transparent:true,opacity:.42,roughness:.0,metalness:.05}),
+  };
+
+  /* ================================================================
+     PRIMITIVE  HELPERS
+  ================================================================ */
+  function mkBox(w,h,d,mat,px=0,py=0,pz=0,rx=0,ry=0,rz=0,parent=scene){
+    const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);
+    m.position.set(px,py,pz); m.rotation.set(rx,ry,rz);
+    m.castShadow=true; m.receiveShadow=true;
+    parent.add(m); return m;
+  }
+  function mkCyl(rt,rb,h,seg,mat,px=0,py=0,pz=0,rx=0,ry=0,rz=0,parent=scene){
+    const m=new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,seg),mat);
+    m.position.set(px,py,pz); m.rotation.set(rx,ry,rz);
+    m.castShadow=true; m.receiveShadow=true;
+    parent.add(m); return m;
+  }
+  function mkSph(r,seg,mat,px=0,py=0,pz=0,parent=scene){
+    const m=new THREE.Mesh(new THREE.SphereGeometry(r,seg,seg),mat);
+    m.position.set(px,py,pz); m.castShadow=true;
+    parent.add(m); return m;
+  }
+  function addLight(type,color,intensity,distance,px,py,pz,parent=scene){
+    let l;
+    if(type==='point')  l=new THREE.PointLight(color,intensity,distance);
+    if(type==='spot'){  l=new THREE.SpotLight(color,intensity,distance); }
+    l.position.set(px,py,pz);
+    parent.add(l); return l;
+  }
+
+  /* ================================================================
+     GROUND  &  HARDSCAPE
+  ================================================================ */
+  mkBox(240,0.18,240, MAT.grass,  0,-0.09, 0);
+  mkBox(9,0.06,38,   MAT.asphalt, 0, 0.03, 22);   // driveway
+  mkBox(36,0.28,10,  MAT.marble,  0, 0.14, 9.5);  // front terrace
+  mkBox(20,0.22,16,  MAT.marble, -26, 0.11,-1);   // pool terrace
+
+  /* ================================================================
+     VILLA
+  ================================================================ */
+  (function buildVilla(){
+    const g = new THREE.Group();
+    scene.add(g);
+
+    /* ── Ground floor main ─────────────────────────────────────── */
+    mkBox(30,5.2,16,  MAT.concrete, 0,2.6, 0, 0,0,0, g);
+    /* Entrance protrusion */
+    mkBox(9,5.2,2.4,  MAT.white,    0,2.6,9.2, 0,0,0, g);
+
+    /* ── Second floor ──────────────────────────────────────────── */
+    mkBox(26,4.2,14,  MAT.white,    0, 7.3,  0, 0,0,0, g);
+
+    /* ── Flat roof (main) ──────────────────────────────────────── */
+    mkBox(30.8,0.5,17.6, MAT.dark,  0, 9.65, 0, 0,0,0, g);
+    mkBox(31.2,0.28,18,  MAT.darkGray, 0, 9.95, 0, 0,0,0, g);
+    /* Flat roof 2nd floor */
+    mkBox(27.2,0.42,15.5, MAT.dark, 0, 5.51, 0, 0,0,0, g);
+
+    /* ── Left wing ─────────────────────────────────────────────── */
+    mkBox(11,4.6,13,  MAT.concrete,-20.5,2.3, 0, 0,0,0, g);
+    mkBox(12,0.4,14,  MAT.dark,   -20.5,4.8, 0, 0,0,0, g);
+
+    /* ── Right wing / Garage ───────────────────────────────────── */
+    mkBox(11,4.6,13,  MAT.concrete, 20.5,2.3, 0, 0,0,0, g);
+    mkBox(12,0.4,14,  MAT.dark,     20.5,4.8, 0, 0,0,0, g);
+
+    /* Garage door panels */
+    mkBox(7.8,3.6,0.18, MAT.darkGray, 20.5,1.8,6.6, 0,0,0, g);
+    for(let i=0;i<4;i++) mkBox(7.8,.05,.14,MAT.dark, 20.5,.45+i*.9,6.72, 0,0,0, g);
+
+    /* ── Columns (entrance) ────────────────────────────────────── */
+    for(let cx of [-4.2,4.2]){
+      mkCyl(.38,.38,5.6,14, MAT.marble, cx,2.8,9.8, 0,0,0, g);
+      mkBox(.9,.22,.9, MAT.marble, cx,.11,9.8, 0,0,0, g);
+      mkBox(.9,.22,.9, MAT.marble, cx,5.71,9.8, 0,0,0, g);
+    }
+    mkBox(10.6,.38,.55, MAT.marble, 0,5.82,9.8, 0,0,0, g); // lintel
+
+    /* ── Main door ─────────────────────────────────────────────── */
+    mkBox(2.5,4.1,0.14, MAT.wood,  0,2.05,8.19, 0,0,0, g);
+    mkBox(2.9,4.5,0.08, MAT.gold,  0,2.25,8.24, 0,0,0, g);
+    /* Sidelights */
+    mkBox(.7,3.1,0.09, MAT.glowWin,-1.7,2.55,8.22, 0,0,0, g);
+    mkBox(.7,3.1,0.09, MAT.glowWin, 1.7,2.55,8.22, 0,0,0, g);
+    /* Transom */
+    mkBox(2.5,.7,0.09, MAT.glowWin, 0,4.35,8.22, 0,0,0, g);
+
+    /* Gold door handle */
+    mkSph(.09,8, MAT.gold, .9,2.05,8.3, g);
+
+    /* ── Ground floor windows (front) ─────────────────────────── */
+    for(let wx of [-10.5,10.5]){
+      mkBox(4.6,.12,.14, MAT.dark,    wx,4.1,8.14, 0,0,0, g); // top frame
+      mkBox(4.6,.12,.14, MAT.dark,    wx,1.65,8.14,0,0,0, g); // bottom frame
+      mkBox(.12,2.58,.14,MAT.dark, wx-2.35,2.88,8.14,0,0,0,g);
+      mkBox(.12,2.58,.14,MAT.dark, wx+2.35,2.88,8.14,0,0,0,g);
+      mkBox(4.35,2.45,0.08,MAT.glowWin,wx,2.88,8.16,0,0,0, g);
+    }
+    /* Wing window */
+    mkBox(4.8,2.3,.08, MAT.glowWin,-20.5,2.5,6.62, 0,0,0, g);
+
+    /* ── 2nd floor windows (front) ─────────────────────────────── */
+    for(let wx of [-8.5,0,8.5]){
+      mkBox(4.4,.1,.12,  MAT.dark,   wx,8.85,7.14, 0,0,0, g);
+      mkBox(4.4,.1,.12,  MAT.dark,   wx,6.35,7.14, 0,0,0, g);
+      mkBox(4.2,2.4,0.07,MAT.glass,  wx,7.6 ,7.15, 0,0,0, g);
+    }
+
+    /* ── Giant glass wall (left side) ─────────────────────────── */
+    mkBox(.07,8.5,13, MAT.glass,-15.05,4.75, 0, 0,0,0, g);
+    for(let y of [1,3,5,7,9])   mkBox(.1,.08,13,MAT.dark,-15.06,y, 0, 0,0,0,g);
+    for(let z of [-4.5,-1.5,1.5,4.5]) mkBox(.1,8.5,.08,MAT.darkGray,-15.06,4.75,z,0,0,0,g);
+
+    /* ── Balcony ────────────────────────────────────────────────── */
+    mkBox(27.5,.26,2.2, MAT.marble, 0,5.38,9.9, 0,0,0, g);
+    for(let bx=-13;bx<=13;bx+=1.5){
+      mkBox(.07,.95,.07, MAT.chrome, bx,5.87,10.9, 0,0,0, g);
+    }
+    mkBox(27.5,.07,.07, MAT.chrome, 0,6.35,10.9, 0,0,0, g);
+
+    /* ── Pool ───────────────────────────────────────────────────── */
+    mkBox(15,.35,9,  MAT.marble,  -26,-0.17,0, 0,0,0, g);
+    mkBox(15.5,.78,.28,MAT.marble,-26, .01, 4.64,0,0,0,g);
+    mkBox(15.5,.78,.28,MAT.marble,-26, .01,-4.64,0,0,0,g);
+    mkBox(.28,.78, 9.6,MAT.marble,-33.64,.01,0, 0,0,0,g);
+    mkBox(.28,.78, 9.6,MAT.marble,-18.36,.01,0, 0,0,0,g);
+    mkBox(14.5,.05,8.6,MAT.water, -26,.41, 0, 0,0,0, g);
+
+    const pLight=new THREE.PointLight(0x00aaff,60,16);
+    pLight.position.set(-26,.8,0); g.add(pLight);
+
+    /* Pool loungers */
+    for(let lz of [-2.5,2.5]){
+      mkBox(2.2,.18,.7, MAT.marble,-31,  .55,lz, 0,0,0,g);
+      mkBox(.7,.48,.7,  MAT.marble,-30.35,.73,lz,0,0,0,g);
+    }
+
+    /* ── Outdoor spotlights ─────────────────────────────────────── */
+    const makeSpot=(px,py,pz,tx,ty,tz,c=0xffeedd,int=40,dist=22,angle=.28,pen=.5)=>{
+      const s=new THREE.SpotLight(c,int,dist,angle,pen);
+      s.position.set(px,py,pz);
+      s.target.position.set(tx,ty,tz);
+      s.castShadow=true;
+      s.shadow.mapSize.set(512,512);
+      scene.add(s); scene.add(s.target);
+    };
+    makeSpot( 0,9.8,11, 0,0, 9);
+    makeSpot(-12,9.8, 0,-12,0, 0,0xffeedd,30,18,.3,.6);
+    makeSpot( 12,9.8, 0, 12,0, 0,0xffeedd,30,18,.3,.6);
+    makeSpot(-26,5, 4,-26,0, 0,0x88aaff,20,14,.35,.7);
+
+    /* Window glow points */
+    addLight('point',0xff9944,35,14,-10,3, 7);
+    addLight('point',0xff9944,25,12, 10,3, 7);
+    addLight('point',0xff9944,22,10, 0, 7.5,7);
+  })();
+
+  /* ================================================================
+     PORSCHE  911  GT3  RS
+  ================================================================ */
+  (function buildPorsche(){
+    const g = new THREE.Group();
+    const p = MAT.purple;
+    const b = MAT.carBlack;
+
+    /* ── Underbody / floor pan ─────────────────────────────────── */
+    mkBox(4.5,.19,1.96, b, 0,.18, 0, 0,0,0, g);
+
+    /* ── Lower body shell (widest part at sill) ─────────────────── */
+    mkBox(4.3,.52,2.04, p, 0,.58, 0, 0,0,0, g);
+
+    /* Sill panels */
+    mkBox(3.6,.17,.07, b, 0,.36, 1.06, 0,0,0, g);
+    mkBox(3.6,.17,.07, b, 0,.36,-1.06, 0,0,0, g);
+
+    /* ── Mid-body (fender connection) ────────────────────────────── */
+    mkBox(2.6,.42,1.85, p, 0,.96, 0, 0,0,0, g);
+
+    /* Front fenders (flared) */
+    mkBox(1.05,.38,2.0, p,  1.62,.96, 0, 0,0,0, g);
+    /* Rear fenders */
+    mkBox(1.08,.4, 2.1, p, -1.58,.96, 0, 0,0,0, g);
+
+    /* ── Cabin / roofline ─────────────────────────────────────────── */
+    mkBox(1.85,.78,1.57, p, .22,1.61, 0, 0,0,0, g);
+
+    /* A-pillar wedge (front) */
+    mkBox(.07,.72,1.52, MAT.carGlass, 1.12,1.57,0, 0,0,-.52, g);
+    /* C-pillar (rear) */
+    mkBox(.07,.62,1.50, MAT.carGlass,-.72,1.54,0, 0,0, .48, g);
+
+    /* Side glass */
+    mkBox(1.45,.54,.04, MAT.carGlass, .22,1.64, .82, 0,0,0, g);
+    mkBox(1.45,.54,.04, MAT.carGlass, .22,1.64,-.82, 0,0,0, g);
+
+    /* ── Hood ─────────────────────────────────────────────────────── */
+    mkBox(1.45,.08,1.88, p, 1.55,.88, 0, 0,0, .22, g);
+    mkBox(.55,.28,1.84, p, 2.06,.73, 0, 0,0,0,  g);
+
+    /* Hood central duct (NACA style) */
+    mkBox(.55,.04,.32, b, 1.6,.93, 0, 0,0,0, g);
+
+    /* ── Rear engine lid ──────────────────────────────────────────── */
+    mkBox(.85,.08,1.84, p,-1.6,.88,0, 0,0,-.18, g);
+    /* Engine louvers */
+    for(let i=-2;i<=2;i++) mkBox(.6,.03,.13, b,-1.55,.94,i*.2, 0,0,0, g);
+
+    /* ── Front bumper / splitter ───────────────────────────────────── */
+    mkBox(.28,.44,1.92, p, 2.22,.54,0, 0,0,0, g);
+    mkBox(.48,.07,2.06, b, 2.27,.22,0, 0,0,0, g); // splitter
+    /* Air intakes */
+    mkBox(.38,.22,.7, b, 2.14,.36, .72, 0,0,0, g);
+    mkBox(.38,.22,.7, b, 2.14,.36,-.72, 0,0,0, g);
+    /* Central grille */
+    mkBox(.32,.22,.55, b, 2.2,.36, 0, 0,0,0, g);
+
+    /* ── Rear diffuser ────────────────────────────────────────────── */
+    mkBox(.42,.26,1.9, b,-2.22,.35, 0, 0,0,0, g);
+    for(let i=-3;i<=3;i++) mkBox(.4,.03,.06,b,-2.2,.25,i*.22,0,0,0,g);
+
+    /* ── GT3 RS Swan-neck wing ─────────────────────────────────────── */
+    /* End plates */
+    mkBox(.08,.55,.06, b,-1.95,1.26, .82, 0,0,0, g);
+    mkBox(.08,.55,.06, b,-1.95,1.26,-.82, 0,0,0, g);
+    /* Vertical blade */
+    mkBox(.07,.38,1.68, b,-1.96,1.16, 0, 0,0,0, g);
+    /* Main wing plane */
+    mkBox(.46,.07,1.78, b,-1.96,1.52, 0, 0,0,-.22, g);
+    /* Gurney flap */
+    mkBox(.22,.06,1.78, b,-2.17,1.55, 0, 0,0,0, g);
+
+    /* ── Headlights ───────────────────────────────────────────────── */
+    mkBox(.05,.24,.58, MAT.headlamp, 2.25,.82, .64, 0,0,0, g);
+    mkBox(.05,.24,.58, MAT.headlamp, 2.25,.82,-.64, 0,0,0, g);
+    /* DRL strip */
+    mkBox(.04,.06,1.35, MAT.drl, 2.26,.60, 0, 0,0,0, g);
+    /* Accent ring */
+    mkCyl(.15,.15,.03,18,MAT.headlamp,2.28,.82,.64,0,0,Math.PI/2, g);
+    mkCyl(.15,.15,.03,18,MAT.headlamp,2.28,.82,-.64,0,0,Math.PI/2,g);
+
+    /* Headlight beam */
+    const hl=new THREE.SpotLight(0xffeedd,80,25,Math.PI/9,.15);
+    hl.position.set(2.4,.85,0);
+    hl.target.position.set(18,.3,0);
+    g.add(hl); g.add(hl.target);
+
+    /* ── Taillights ───────────────────────────────────────────────── */
+    mkBox(.05,.22,.58, MAT.tailamp,-2.25,.86, .64, 0,0,0, g);
+    mkBox(.05,.22,.58, MAT.tailamp,-2.25,.86,-.64, 0,0,0, g);
+    mkBox(.04,.07,1.58, MAT.tailamp,-2.26,.68, 0, 0,0,0, g);
+    /* Reverse / reflectors */
+    mkBox(.04,.1,.25,new THREE.MeshStandardMaterial({color:0xffffff,emissive:0xffffff,emissiveIntensity:1.2}), -2.26,.5,0,0,0,0,g);
+
+    /* ── Exhaust ───────────────────────────────────────────────────── */
+    mkCyl(.075,.09,.28,10,MAT.chrome,-2.3,.3,.52,  0,0,Math.PI/2,g);
+    mkCyl(.075,.09,.28,10,MAT.chrome,-2.3,.3,-.52, 0,0,Math.PI/2,g);
+
+    /* ── Door handles ─────────────────────────────────────────────── */
+    mkBox(.04,.06,.32, MAT.chrome, .2,.99,1.03, 0,0,0, g);
+    mkBox(.04,.06,.32, MAT.chrome, .2,.99,-1.03,0,0,0, g);
+
+    /* ── Wheels ─────────────────────────────────────────────────────── */
+    const wheelCoords=[
+      [ 1.5, 1.02],[ 1.5,-1.02],
+      [-1.5, 1.02],[-1.5,-1.02]
+    ];
+    wheelCoords.forEach(([wx,wz])=>{
+      const wg=new THREE.Group(); wg.position.set(wx,.42,wz); g.add(wg);
+
+      /* Tire */
+      const tire=new THREE.Mesh(new THREE.CylinderGeometry(.41,.41,.30,28),MAT.tire);
+      tire.rotation.z=Math.PI/2; tire.castShadow=true; tire.receiveShadow=true;
+      wg.add(tire);
+      /* Tire lettering band */
+      const band=new THREE.Mesh(new THREE.CylinderGeometry(.415,.415,.04,28),
+        new THREE.MeshStandardMaterial({color:0x2a2a2a,roughness:.8}));
+      band.rotation.z=Math.PI/2; band.position.x=(wz>0?-.11:.11);
+      wg.add(band);
+
+      /* Rim */
+      const rim=new THREE.Mesh(new THREE.CylinderGeometry(.31,.31,.28,12),MAT.rim);
+      rim.rotation.z=Math.PI/2; wg.add(rim);
+
+      /* 5-spoke pattern */
+      for(let s=0;s<5;s++){
+        const a=(s/5)*Math.PI*2;
+        const spoke=new THREE.Mesh(new THREE.BoxGeometry(.28,.068,.42),MAT.rim);
+        spoke.rotation.x=a; wg.add(spoke);
+        /* Spoke cutout effect with darker inner */
+        const cut=new THREE.Mesh(new THREE.BoxGeometry(.25,.04,.3),MAT.dark);
+        cut.rotation.x=a; wg.add(cut);
+      }
+
+      /* Centre cap */
+      const cap=new THREE.Mesh(new THREE.CylinderGeometry(.072,.072,.30,8),MAT.chrome);
+      cap.rotation.z=Math.PI/2; wg.add(cap);
+      mkSph(.05,8,MAT.chrome,0,0,0,wg);
+
+      /* Brake disc */
+      const disc=new THREE.Mesh(new THREE.CylinderGeometry(.255,.255,.03,18),
+        new THREE.MeshStandardMaterial({color:0x3a3a3a,roughness:.55,metalness:.85}));
+      disc.rotation.z=Math.PI/2; wg.add(disc);
+
+      /* Caliper */
+      const cal=new THREE.Mesh(new THREE.BoxGeometry(.12,.12,.20),MAT.caliper);
+      cal.position.set(.16,-.16,0); wg.add(cal);
+    });
+
+    /* Position on driveway */
+    g.position.set(0,0,15);
+    g.rotation.y=Math.PI;
+    scene.add(g);
+    return g;
+  })();
+
+  /* ================================================================
+     TREES  &  LANDSCAPING
+  ================================================================ */
+  function plantPalm(x,z){
+    const trunkMat=new THREE.MeshStandardMaterial({color:0x6b4c2a,roughness:.88});
+    mkCyl(.14,.2,8,7,trunkMat, x,4,z);
+    const leafMat=new THREE.MeshStandardMaterial({color:0x2b7018,roughness:.82});
+    for(let i=0;i<7;i++){
+      const a=(i/7)*Math.PI*2;
+      const leaf=new THREE.Mesh(new THREE.BoxGeometry(.09,.06,3),leafMat);
+      leaf.position.set(x+Math.cos(a)*1.25,8.4,z+Math.sin(a)*1.25);
+      leaf.rotation.set(.48,a+Math.PI/2,0);
+      leaf.castShadow=true; scene.add(leaf);
+    }
+  }
+  function plantRound(x,z,h=7){
+    const trunkMat=new THREE.MeshStandardMaterial({color:0x4a3728,roughness:.9});
+    const foliMat =new THREE.MeshStandardMaterial({color:0x1a4e0d,roughness:.86});
+    mkCyl(.19,.28,h*.32,8,trunkMat,x,h*.16,z);
+    mkSph(h*.27,9,foliMat,x,h*.59,z);
+  }
+  function plantConifer(x,z,h=8){
+    const trunkMat=new THREE.MeshStandardMaterial({color:0x4a3728,roughness:.9});
+    const foliMat =new THREE.MeshStandardMaterial({color:0x134a08,roughness:.86});
+    mkCyl(.15,.22,h*.22,7,trunkMat,x,h*.11,z);
+    for(let i=0;i<3;i++) mkCyl(0,h*.22-i*.06,h*.28,8,foliMat,x,h*.22+i*h*.2,z);
+  }
+
+  /* Landscape placement */
+  [[-37,12],[-37,-5],[37,10],[37,-7]].forEach(([x,z])=>plantPalm(x,z));
+  [[-23,30],[23,32],[23,-20],[-23,-18]].forEach(([x,z])=>plantPalm(x,z));
+  [[-34,24],[34,26],[-50,-2],[50,0]].forEach(([x,z])=>plantRound(x,z,8));
+  [[-42,14],[42,16],[-30,-15],[30,-17]].forEach(([x,z])=>plantConifer(x,z,9));
+  [[-55,5],[55,8],[-46,28],[46,30]].forEach(([x,z])=>plantConifer(x,z,11));
+  [[-40,-8],[40,-10]].forEach(([x,z])=>plantRound(x,z,10));
+
+  /* Low hedge row */
+  for(let hx=-13;hx<=13;hx+=3){
+    mkBox(2.5,.7,1.4,new THREE.MeshStandardMaterial({color:0x234a15,roughness:.92}),hx,.35,12);
+  }
+
+  /* ================================================================
+     LAMP  POSTS
+  ================================================================ */
+  function mkLamp(x,z){
+    mkCyl(.07,.1,5,8,MAT.darkGray, x,2.5,z);
+    mkBox(1.3,.07,.07, MAT.darkGray, x+.65,5.1,z);
+    mkSph(.2,8,new THREE.MeshStandardMaterial({
+      color:0xffeeaa,emissive:0xffcc44,emissiveIntensity:5}),x+1.3,5.1,z);
+    const l=new THREE.PointLight(0xffee88,35,14);
+    l.position.set(x+1.3,5.2,z); scene.add(l);
+  }
+  for(let z=16;z<=40;z+=9){
+    mkLamp(-5.5,z); mkLamp(5.5,z);
+  }
+
+  /* ================================================================
+     ANIMATE
+  ================================================================ */
+  let autoRotate=true;
+  controls.addEventListener('start',()=>{ autoRotate=false; });
+
+  const clock=new THREE.Clock();
+  let t=0;
+
+  function animate(){
+    requestAnimationFrame(animate);
+    const dt=clock.getDelta();
+    t+=dt;
+
+    if(autoRotate){
+      camera.position.x= 38*Math.cos(t*.07)+4;
+      camera.position.y= 13+Math.sin(t*.042)*2.5;
+      camera.position.z= 38*Math.sin(t*.07)+3;
+      camera.lookAt(0,2,3);
+    } else {
+      controls.update();
+    }
+
+    renderer.render(scene,camera);
+  }
+  animate();
+
+  /* ================================================================
+     RESIZE
+  ================================================================ */
+  window.addEventListener('resize',()=>{
+    camera.aspect=innerWidth/innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth,innerHeight);
+  });
+
+  /* ================================================================
+     HIDE  LOADER
+  ================================================================ */
+  clearInterval(progInterval);
+  bar.style.width='100%';
+  setTimeout(()=>{
+    const loader=document.getElementById('loader');
+    loader.style.opacity='0';
+    setTimeout(()=>loader.remove(),1200);
+  },600);
+  </script>
+</body>
+</html>
