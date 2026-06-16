@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bureau – Amli / CEC</title>
+  <style>
+    /* ── Reset & base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #1a1a2e;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      font-family: 'Segoe UI', sans-serif;
+      overflow: hidden;
+    }
+
+    /* ══════════════════════════════════════════
+       BUREAU (surface en bois)
+    ══════════════════════════════════════════ */
+    .bureau {
+      position: relative;
+      width: 1100px;
+      height: 700px;
+      background:
+        repeating-linear-gradient(
+          92deg,
+          rgba(255,255,255,0.03) 0px, rgba(255,255,255,0.03) 1px,
+          transparent 1px, transparent 60px
+        ),
+        linear-gradient(160deg, #8B5E3C 0%, #6B3F1E 40%, #7A4A25 70%, #5C3317 100%);
+      border-radius: 18px;
+      box-shadow: 0 30px 80px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.1);
+      overflow: hidden;
+    }
+
+    /* grain de bois */
+    .bureau::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(
+        175deg,
+        transparent 0px, transparent 18px,
+        rgba(0,0,0,0.06) 18px, rgba(0,0,0,0.06) 19px
+      );
+      border-radius: 18px;
+      pointer-events: none;
+    }
+
+    /* ══════════════════════════════════════════
+       SOUS-MAIN (tapis de bureau)
+    ══════════════════════════════════════════ */
+    .sous-main {
+      position: absolute;
+      left: 50px; top: 40px;
+      width: 650px; height: 420px;
+      background: linear-gradient(135deg, #1B3A6B, #0d2647);
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      border: 2px solid rgba(255,255,255,0.07);
+    }
+
+    /* ══════════════════════════════════════════
+       LAPTOP
+    ══════════════════════════════════════════ */
+    .laptop {
+      position: absolute;
+      left: 120px; top: 70px;
+      width: 520px; height: 340px;
+    }
+
+    .laptop-ecran {
+      width: 520px; height: 320px;
+      background: linear-gradient(160deg, #0f2444 0%, #0a1a30 100%);
+      border-radius: 14px 14px 4px 4px;
+      border: 8px solid #2a2a2a;
+      box-shadow: 0 0 0 2px #111, 0 12px 40px rgba(0,0,0,0.6),
+                  inset 0 0 60px rgba(59,130,246,0.08);
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Écran : interface CEC */
+    .ecran-contenu {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .ecran-barre {
+      height: 36px;
+      background: linear-gradient(90deg, #1e3a6e, #0f2444);
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      gap: 8px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .ecran-barre .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .dot-r { background: #ff5f56; }
+    .dot-y { background: #ffbd2e; }
+    .dot-g { background: #27c93f; }
+
+    .ecran-barre .titre-tab {
+      margin-left: 16px;
+      background: rgba(255,255,255,0.08);
+      padding: 4px 16px;
+      border-radius: 6px 6px 0 0;
+      font-size: 11px;
+      color: #a0b4d0;
+    }
+
+    .ecran-body {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 180px 1fr;
+    }
+
+    .ecran-sidebar {
+      background: rgba(0,0,0,0.3);
+      padding: 18px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      border-right: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .ecran-logo {
+      font-size: 13px;
+      font-weight: 700;
+      color: #60a5fa;
+      margin-bottom: 14px;
+      letter-spacing: 2px;
+    }
+
+    .ecran-logo span { color: #f59e0b; }
+
+    .nav-item {
+      font-size: 10px;
+      color: #7a9cc0;
+      padding: 6px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      transition: background 0.2s;
+    }
+
+    .nav-item.actif { background: rgba(59,130,246,0.2); color: #93c5fd; }
+    .nav-item .ico { font-size: 13px; }
+
+    .ecran-main {
+      padding: 14px 16px;
+      overflow: hidden;
+    }
+
+    .ecran-bienvenue {
+      font-size: 11px;
+      color: #94a3b8;
+      margin-bottom: 10px;
+    }
+
+    .ecran-bienvenue strong { color: #e2e8f0; font-size: 13px; }
+
+    .cours-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .cours-card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 8px;
+      padding: 10px;
+    }
+
+    .cours-card .badge {
+      font-size: 8px;
+      background: #1e40af;
+      color: #bfdbfe;
+      padding: 2px 7px;
+      border-radius: 99px;
+      display: inline-block;
+      margin-bottom: 5px;
+    }
+
+    .cours-card h4 { font-size: 10px; color: #e2e8f0; margin-bottom: 3px; }
+    .cours-card p  { font-size: 9px;  color: #64748b; }
+
+    .progress-bar {
+      height: 3px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 99px;
+      margin-top: 6px;
+      overflow: hidden;
+    }
+    .progress-fill { height: 100%; border-radius: 99px; background: #3b82f6; }
+
+    .stat-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .stat-box {
+      flex: 1;
+      background: rgba(59,130,246,0.08);
+      border: 1px solid rgba(59,130,246,0.2);
+      border-radius: 8px;
+      padding: 8px;
+      text-align: center;
+    }
+
+    .stat-box .val { font-size: 16px; font-weight: 700; color: #60a5fa; }
+    .stat-box .lbl { font-size: 8px; color: #64748b; margin-top: 2px; }
+
+    .laptop-clavier {
+      width: 520px; height: 20px;
+      background: linear-gradient(180deg, #2a2a2a, #222);
+      border-radius: 0 0 10px 10px;
+      border-top: 1px solid #1a1a1a;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.5);
+    }
+
+    /* ══════════════════════════════════════════
+       AGENDA / CAHIER DE TEXTES
+    ══════════════════════════════════════════ */
+    .agenda {
+      position: absolute;
+      right: 30px; top: 30px;
+      width: 210px; height: 300px;
+      background: #2563eb;
+      border-radius: 4px 12px 12px 4px;
+      box-shadow: -4px 4px 18px rgba(0,0,0,0.4);
+      overflow: hidden;
+    }
+
+    .agenda-spiral {
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 18px;
+      background: #1e40af;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 14px 0;
+      gap: 14px;
+    }
+
+    .spiral-anneau {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: #93c5fd;
+      box-shadow: 0 0 0 2px #1e3a6e;
+    }
+
+    .agenda-page {
+      margin-left: 18px;
+      padding: 12px 10px;
+      background: #f8fafc;
+      height: 100%;
+    }
+
+    .agenda-entete {
+      font-size: 9px;
+      font-weight: 800;
+      color: #1e40af;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 2px;
+    }
+
+    .agenda-mois {
+      font-size: 8px;
+      color: #64748b;
+      margin-bottom: 10px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .agenda-ligne { display: flex; gap: 6px; margin-bottom: 7px; align-items: flex-start; }
+
+    .agenda-date {
+      font-size: 8px;
+      font-weight: 700;
+      color: #1e40af;
+      min-width: 22px;
+    }
+
+    .agenda-tache {
+      font-size: 8px;
+      color: #334155;
+      line-height: 1.4;
+    }
+
+    .agenda-tache .tag {
+      display: inline-block;
+      background: #dbeafe;
+      color: #1d4ed8;
+      font-size: 7px;
+      padding: 1px 5px;
+      border-radius: 3px;
+      margin-right: 3px;
+    }
+
+    /* ══════════════════════════════════════════
+       TASSE DE CAFÉ
+    ══════════════════════════════════════════ */
+    .tasse-wrap {
+      position: absolute;
+      right: 60px; bottom: 110px;
+    }
+
+    .soucoupe {
+      width: 70px; height: 14px;
+      background: radial-gradient(ellipse, #e2e8f0 60%, #cbd5e1 100%);
+      border-radius: 50%;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+      position: relative;
+      z-index: 1;
+    }
+
+    .tasse {
+      width: 52px; height: 50px;
+      background: linear-gradient(160deg, #f8fafc, #e2e8f0);
+      border-radius: 4px 4px 14px 14px;
+      position: absolute;
+      top: -48px;
+      left: 9px;
+      box-shadow: 2px 4px 12px rgba(0,0,0,0.2);
+      overflow: hidden;
+    }
+
+    .cafe-liquide {
+      position: absolute;
+      bottom: 8px; left: 8px; right: 8px;
+      height: 22px;
+      background: radial-gradient(ellipse, #6f3c1a 40%, #3d1f0a 100%);
+      border-radius: 0 0 8px 8px;
+    }
+
+    .anse {
+      position: absolute;
+      right: -16px; top: 10px;
+      width: 16px; height: 26px;
+      border: 4px solid #e2e8f0;
+      border-left: none;
+      border-radius: 0 12px 12px 0;
+    }
+
+    .vapeur {
+      position: absolute;
+      top: -22px; left: 14px;
+      display: flex; gap: 5px;
+    }
+
+    .vapeur-trait {
+      width: 3px; height: 16px;
+      background: linear-gradient(180deg, transparent, rgba(255,255,255,0.5));
+      border-radius: 99px;
+      animation: vapeur 2s ease-in-out infinite;
+    }
+
+    .vapeur-trait:nth-child(2) { animation-delay: 0.4s; height: 20px; }
+    .vapeur-trait:nth-child(3) { animation-delay: 0.8s; }
+
+    @keyframes vapeur {
+      0%, 100% { opacity: 0; transform: translateY(0) scaleX(1); }
+      50%       { opacity: 1; transform: translateY(-8px) scaleX(1.3); }
+    }
+
+    /* logo CEC sur la tasse */
+    .tasse-logo {
+      position: absolute;
+      top: 10px; left: 8px;
+      font-size: 8px;
+      font-weight: 800;
+      color: #1e40af;
+      letter-spacing: 1px;
+    }
+
+    /* ══════════════════════════════════════════
+       STYLOS / TROUSSE
+    ══════════════════════════════════════════ */
+    .stylo-pot {
+      position: absolute;
+      right: 155px; bottom: 80px;
+    }
+
+    .pot {
+      width: 44px; height: 50px;
+      background: linear-gradient(160deg, #fbbf24, #d97706);
+      border-radius: 4px 4px 8px 8px;
+      box-shadow: 3px 5px 14px rgba(0,0,0,0.3);
+      position: relative;
+    }
+
+    .stylo {
+      position: absolute;
+      bottom: 48px;
+      width: 6px;
+      border-radius: 3px 3px 0 0;
+    }
+
+    .s1 { left: 6px;  height: 70px; background: linear-gradient(180deg, #3b82f6, #1d4ed8); transform: rotate(-8deg); }
+    .s2 { left: 16px; height: 80px; background: linear-gradient(180deg, #ef4444, #b91c1c); transform: rotate(3deg); }
+    .s3 { left: 26px; height: 65px; background: linear-gradient(180deg, #10b981, #059669); transform: rotate(-3deg); }
+    .s4 { left: 35px; height: 75px; background: linear-gradient(180deg, #f59e0b, #d97706); transform: rotate(6deg); }
+
+    /* ══════════════════════════════════════════
+       FEUILLES / DOCUMENTS
+    ══════════════════════════════════════════ */
+    .feuille {
+      position: absolute;
+      width: 160px;
+      background: #fff;
+      border-radius: 3px;
+      padding: 12px;
+      box-shadow: 3px 5px 18px rgba(0,0,0,0.25);
+    }
+
+    .feuille-1 {
+      bottom: 30px; left: 40px;
+      transform: rotate(-4deg);
+    }
+
+    .feuille-2 {
+      bottom: 20px; left: 80px;
+      transform: rotate(3deg);
+      z-index: 2;
+    }
+
+    .feuille h5 {
+      font-size: 8px;
+      font-weight: 700;
+      color: #1e40af;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 6px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .feuille-ligne {
+      height: 1px;
+      background: #e2e8f0;
+      margin-bottom: 5px;
+    }
+
+    .feuille-ligne.court { width: 70%; }
+    .feuille-ligne.long  { width: 95%; }
+
+    .feuille-titre {
+      font-size: 9px;
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 8px;
+    }
+
+    .feuille-case {
+      display: flex; gap: 5px; margin-bottom: 4px; align-items: center;
+    }
+
+    .checkbox {
+      width: 9px; height: 9px;
+      border: 1.5px solid #94a3b8;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+
+    .checkbox.coche { border-color: #3b82f6; background: #3b82f6; }
+    .checkbox.coche::after { content: '✓'; font-size: 7px; color: #fff; display: block; line-height: 9px; text-align: center; }
+
+    .feuille-case span { font-size: 8px; color: #475569; }
+
+    /* ══════════════════════════════════════════
+       POST-IT
+    ══════════════════════════════════════════ */
+    .postit {
+      position: absolute;
+      width: 110px;
+      padding: 10px;
+      border-radius: 2px;
+      box-shadow: 3px 5px 14px rgba(0,0,0,0.2);
+      font-size: 9px;
+      line-height: 1.6;
+    }
+
+    .postit::before {
+      content: '';
+      position: absolute;
+      top: 0; right: 0;
+      width: 18px; height: 18px;
+      background: inherit;
+      filter: brightness(0.82);
+      clip-path: polygon(0 0, 100% 0, 100% 100%);
+    }
+
+    .postit-jaune { background: #fef08a; color: #713f12; bottom: 220px; right: 255px; transform: rotate(5deg); }
+    .postit-rose   { background: #fbcfe8; color: #831843; bottom: 170px; right: 240px; transform: rotate(-3deg); z-index: 3; }
+
+    .postit strong { display: block; font-weight: 700; margin-bottom: 3px; }
+
+    /* ══════════════════════════════════════════
+       LIVRE / MANUEL
+    ══════════════════════════════════════════ */
+    .livre {
+      position: absolute;
+      bottom: 80px; right: 245px;
+      width: 90px; height: 120px;
+      transform: rotate(-8deg);
+    }
+
+    .livre-couv {
+      width: 90px; height: 120px;
+      background: linear-gradient(160deg, #1e40af, #1e3a8a);
+      border-radius: 2px 8px 8px 2px;
+      box-shadow: -3px 3px 12px rgba(0,0,0,0.35), inset -2px 0 6px rgba(0,0,0,0.2);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .livre-dos {
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 12px;
+      background: #1e3a8a;
+      border-right: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .livre-titre {
+      position: absolute;
+      left: 18px; top: 18px; right: 8px;
+    }
+
+    .livre-titre .l1 { font-size: 8px; font-weight: 800; color: #fbbf24; letter-spacing: 2px; }
+    .livre-titre .l2 { font-size: 7px; color: rgba(255,255,255,0.7); margin-top: 3px; line-height: 1.4; }
+
+    .livre-deco {
+      position: absolute;
+      bottom: 18px; left: 18px; right: 8px;
+      height: 2px;
+      background: rgba(251,191,36,0.5);
+    }
+
+    /* ══════════════════════════════════════════
+       TÉLÉPHONE
+    ══════════════════════════════════════════ */
+    .telephone {
+      position: absolute;
+      right: 35px; bottom: 230px;
+      width: 55px; height: 100px;
+    }
+
+    .tel-corps {
+      width: 55px; height: 100px;
+      background: linear-gradient(160deg, #1e293b, #0f172a);
+      border-radius: 12px;
+      box-shadow: 4px 6px 18px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .tel-ecran {
+      position: absolute;
+      inset: 8px;
+      background: linear-gradient(135deg, #0ea5e9, #6366f1);
+      border-radius: 7px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+    }
+
+    .tel-heure { font-size: 14px; font-weight: 700; color: #fff; letter-spacing: 1px; }
+    .tel-date  { font-size: 6px; color: rgba(255,255,255,0.8); }
+    .tel-notif {
+      position: absolute;
+      top: 14px; right: 14px;
+      width: 14px; height: 14px;
+      background: #ef4444;
+      border-radius: 50%;
+      font-size: 7px;
+      color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700;
+    }
+
+    /* ══════════════════════════════════════════
+       RÈGLE
+    ══════════════════════════════════════════ */
+    .regle {
+      position: absolute;
+      left: 35px; bottom: 60px;
+      width: 200px; height: 22px;
+      background: linear-gradient(180deg, #fef9c3, #fef08a);
+      border: 1px solid #fbbf24;
+      border-radius: 3px;
+      transform: rotate(-2deg);
+      box-shadow: 2px 3px 8px rgba(0,0,0,0.15);
+      display: flex;
+      align-items: flex-end;
+      padding: 0 8px 3px;
+      gap: 8px;
+      overflow: hidden;
+    }
+
+    .regle-marque { font-size: 6px; font-weight: 700; color: #92400e; letter-spacing: 2px; }
+    .regle-tirets { display: flex; gap: 6.5px; align-items: flex-end; }
+    .tiret { width: 1px; background: #92400e; }
+    .tiret:nth-child(5n+1) { height: 10px; }
+    .tiret:not(:nth-child(5n+1)) { height: 6px; }
+
+    /* ══════════════════════════════════════════
+       PLANTE
+    ══════════════════════════════════════════ */
+    .plante {
+      position: absolute;
+      left: 30px; top: 30px;
+    }
+
+    .pot-plante {
+      width: 44px; height: 36px;
+      background: linear-gradient(160deg, #b45309, #92400e);
+      border-radius: 0 0 10px 10px;
+      position: relative;
+      box-shadow: 2px 4px 10px rgba(0,0,0,0.3);
+    }
+
+    .pot-plante::before {
+      content: '';
+      position: absolute;
+      top: -6px; left: -4px; right: -4px;
+      height: 10px;
+      background: #a16207;
+      border-radius: 4px;
+    }
+
+    .feuille-plante {
+      position: absolute;
+      width: 28px; height: 40px;
+      background: linear-gradient(160deg, #16a34a, #15803d);
+      border-radius: 50% 10% 50% 10%;
+      box-shadow: 1px 2px 6px rgba(0,0,0,0.2);
+    }
+
+    .fp1 { top: -50px; left: 8px; transform: rotate(-20deg); }
+    .fp2 { top: -44px; left: 18px; transform: rotate(15deg); background: linear-gradient(160deg, #22c55e, #16a34a); }
+    .fp3 { top: -36px; left: 2px;  transform: rotate(-40deg); width: 22px; height: 32px; }
+
+    /* ══════════════════════════════════════════
+       BADGE / CARTES VISITE
+    ══════════════════════════════════════════ */
+    .badge-prof {
+      position: absolute;
+      left: 760px; top: 35px;
+      width: 140px; height: 90px;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 3px 5px 16px rgba(0,0,0,0.25);
+      padding: 10px;
+      transform: rotate(3deg);
+      border-top: 5px solid #1e40af;
+    }
+
+    .badge-nom {
+      font-size: 11px; font-weight: 800; color: #0f172a;
+      margin-bottom: 2px;
+    }
+
+    .badge-role {
+      font-size: 8px; color: #1e40af;
+      margin-bottom: 6px;
+    }
+
+    .badge-sep { height: 1px; background: #e2e8f0; margin-bottom: 6px; }
+
+    .badge-info {
+      font-size: 7.5px; color: #64748b; line-height: 1.6;
+    }
+
+    .badge-cec {
+      position: absolute;
+      bottom: 8px; right: 10px;
+      font-size: 9px; font-weight: 800;
+      color: #1e40af; letter-spacing: 1px;
+    }
+
+    /* ══════════════════════════════════════════
+       PUNAISES / PAPERCLIP décoratif
+    ══════════════════════════════════════════ */
+    .punaise {
+      position: absolute;
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+
+    /* ══════════════════════════════════════════
+       CALCULATRICE
+    ══════════════════════════════════════════ */
+    .calculatrice {
+      position: absolute;
+      right: 30px; top: 355px;
+      width: 85px; height: 125px;
+      background: linear-gradient(160deg, #1e293b, #0f172a);
+      border-radius: 8px;
+      box-shadow: 4px 6px 18px rgba(0,0,0,0.4);
+      padding: 8px;
+    }
+
+    .calc-ecran {
+      background: #0d2d1a;
+      border-radius: 4px;
+      height: 28px;
+      margin-bottom: 7px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 0 6px;
+      font-size: 11px;
+      color: #4ade80;
+      font-family: monospace;
+      letter-spacing: 1px;
+    }
+
+    .calc-touches {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 3px;
+    }
+
+    .calc-btn {
+      height: 14px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 3px;
+      font-size: 6px;
+      color: #94a3b8;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .calc-btn.op { background: rgba(59,130,246,0.2); color: #60a5fa; }
+    .calc-btn.eq { background: #2563eb; color: #fff; }
+
+    /* ══════════════════════════════════════════
+       BANDEAU TITRE EN BAS
+    ══════════════════════════════════════════ */
+    .bandeau {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 14px;
+      background: linear-gradient(90deg, #1e3a8a, #1e40af, #1e3a8a);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 8px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.5);
+      letter-spacing: 3px;
+      text-transform: uppercase;
+    }
+
+    /* ══════════════════════════════════════════
+       CLÉS
+    ══════════════════════════════════════════ */
+    .cles {
+      position: absolute;
+      left: 760px; bottom: 80px;
+      transform: rotate(-15deg);
+    }
+
+    .cle-porte-cles {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      border: 4px solid #d97706;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    }
+
+    .cle {
+      position: absolute;
+      bottom: -30px;
+      width: 10px; height: 35px;
+    }
+
+    .cle::before {
+      content: '';
+      display: block;
+      width: 10px; height: 20px;
+      background: #d97706;
+      border-radius: 5px 5px 0 0;
+    }
+
+    .cle::after {
+      content: '';
+      display: block;
+      width: 14px; height: 8px;
+      background: #d97706;
+      margin-top: 2px;
+      clip-path: polygon(0 0, 60% 0, 60% 40%, 100% 40%, 100% 70%, 60% 70%, 60% 100%, 0 100%);
+    }
+
+    .cle:nth-child(2) { left: 2px; transform: rotate(-10deg); }
+    .cle:nth-child(3) { left: 10px; transform: rotate(8deg); background: #b45309; }
+
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════
+     BUREAU PRINCIPAL
+══════════════════════════════════════════ -->
+<div class="bureau">
+
+  <!-- Sous-main bleu marine -->
+  <div class="sous-main"></div>
+
+  <!-- ── Plante ── -->
+  <div class="plante">
+    <div style="position:relative; height:60px;">
+      <div class="feuille-plante fp1"></div>
+      <div class="feuille-plante fp2"></div>
+      <div class="feuille-plante fp3"></div>
+    </div>
+    <div class="pot-plante"></div>
+  </div>
+
+  <!-- ── Laptop ── -->
+  <div class="laptop">
+    <div class="laptop-ecran">
+      <div class="ecran-contenu">
+        <!-- barre navigateur -->
+        <div class="ecran-barre">
+          <div class="dot dot-r"></div>
+          <div class="dot dot-y"></div>
+          <div class="dot dot-g"></div>
+          <div class="titre-tab">📚 Amli – Portail CEC</div>
+        </div>
+
+        <!-- corps -->
+        <div class="ecran-body">
+          <!-- sidebar -->
+          <div class="ecran-sidebar">
+            <div class="ecran-logo">AM<span>LI</span></div>
+            <div class="nav-item actif"><span class="ico">🏠</span> Tableau de bord</div>
+            <div class="nav-item"><span class="ico">📖</span> Mes cours</div>
+            <div class="nav-item"><span class="ico">📅</span> Calendrier</div>
+            <div class="nav-item"><span class="ico">📝</span> Évaluations</div>
+            <div class="nav-item"><span class="ico">📁</span> Ressources</div>
+            <div class="nav-item"><span class="ico">✉️</span> Messages</div>
+            <div class="nav-item"><span class="ico">👤</span> Mon profil</div>
+          </div>
+
+          <!-- contenu principal -->
+          <div class="ecran-main">
+            <div class="ecran-bienvenue">
+              Bienvenue,&nbsp;<strong>Leila</strong> — Centre d'Éducation Continue
+            </div>
+
+            <div class="stat-row">
+              <div class="stat-box">
+                <div class="val">4</div>
+                <div class="lbl">Cours actifs</div>
+              </div>
+              <div class="stat-box">
+                <div class="val">12</div>
+                <div class="lbl">Élèves</div>
+              </div>
+              <div class="stat-box">
+                <div class="val">3</div>
+                <div class="lbl">À corriger</div>
+              </div>
+            </div>
+
+            <div class="cours-grid">
+              <div class="cours-card">
+                <div class="badge">FRA-5101</div>
+                <h4>Français – Lecture et écriture</h4>
+                <p>Séance 6 / 12 · Mardi 09h00</p>
+                <div class="progress-bar">
+                  <div class="progress-fill" style="width:50%"></div>
+                </div>
+              </div>
+              <div class="cours-card">
+                <div class="badge">MAT-4102</div>
+                <h4>Mathématiques – Algèbre</h4>
+                <p>Séance 8 / 15 · Jeudi 13h30</p>
+                <div class="progress-bar">
+                  <div class="progress-fill" style="width:53%; background:#f59e0b;"></div>
+                </div>
+              </div>
+              <div class="cours-card">
+                <div class="badge">ANG-5200</div>
+                <h4>Anglais langue seconde</h4>
+                <p>Séance 3 / 10 · Mercredi 10h00</p>
+                <div class="progress-bar">
+                  <div class="progress-fill" style="width:30%; background:#10b981;"></div>
+                </div>
+              </div>
+              <div class="cours-card">
+                <div class="badge">INF-3001</div>
+                <h4>Informatique bureautique</h4>
+                <p>Séance 11 / 12 · Lundi 14h00</p>
+                <div class="progress-bar">
+                  <div class="progress-fill" style="width:92%; background:#8b5cf6;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="laptop-clavier"></div>
+  </div>
+
+  <!-- ── Agenda ── -->
+  <div class="agenda">
+    <div class="agenda-spiral">
+      <div class="spiral-anneau"></div>
+      <div class="spiral-anneau"></div>
+      <div class="spiral-anneau"></div>
+      <div class="spiral-anneau"></div>
+      <div class="spiral-anneau"></div>
+      <div class="spiral-anneau"></div>
+      <div class="spiral-anneau"></div>
+      <div class="spiral-anneau"></div>
+    </div>
+    <div class="agenda-page">
+      <div class="agenda-entete">Agenda</div>
+      <div class="agenda-mois">Juin 2026 — CEC Amli</div>
+
+      <div class="agenda-ligne">
+        <div class="agenda-date">Lun 15</div>
+        <div class="agenda-tache"><span class="tag">COURS</span>FRA-5101 · 09h00</div>
+      </div>
+      <div class="agenda-ligne">
+        <div class="agenda-date">Mar 16</div>
+        <div class="agenda-tache"><span class="tag">EXAM</span>MAT-4102 · 13h30</div>
+      </div>
+      <div class="agenda-ligne">
+        <div class="agenda-date">Mer 17</div>
+        <div class="agenda-tache"><span class="tag">COURS</span>ANG-5200 · 10h00</div>
+      </div>
+      <div class="agenda-ligne">
+        <div class="agenda-date">Jeu 18</div>
+        <div class="agenda-tache"><span class="tag">RDV</span>Direction · 11h00</div>
+      </div>
+      <div class="agenda-ligne">
+        <div class="agenda-date">Ven 19</div>
+        <div class="agenda-tache"><span class="tag">REMISE</span>Bulletins S1</div>
+      </div>
+      <div class="agenda-ligne">
+        <div class="agenda-date">Lun 22</div>
+        <div class="agenda-tache"><span class="tag">COURS</span>INF-3001 · 14h00</div>
+      </div>
+      <div class="agenda-ligne">
+        <div class="agenda-date">Mar 23</div>
+        <div class="agenda-tache"><span class="tag">PÉDAGO</span>Réunion équipe</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Badge prof ── -->
+  <div class="badge-prof">
+    <div class="badge-nom">Leila M.</div>
+    <div class="badge-role">Enseignante – CEC Amli</div>
+    <div class="badge-sep"></div>
+    <div class="badge-info">
+      📍 Salle B-204<br/>
+      ✉️ leila@amli-cec.qc<br/>
+      📞 514-000-0000
+    </div>
+    <div class="badge-cec">CEC</div>
+  </div>
+
+  <!-- ── Tasse de café ── -->
+  <div class="tasse-wrap">
+    <div class="vapeur">
+      <div class="vapeur-trait"></div>
+      <div class="vapeur-trait"></div>
+      <div class="vapeur-trait"></div>
+    </div>
+    <div class="tasse">
+      <div class="tasse-logo">CEC</div>
+      <div class="cafe-liquide"></div>
+      <div class="anse"></div>
+    </div>
+    <div class="soucoupe"></div>
+  </div>
+
+  <!-- ── Stylos ── -->
+  <div class="stylo-pot">
+    <div style="position:relative; height:80px;">
+      <div class="stylo s1"></div>
+      <div class="stylo s2"></div>
+      <div class="stylo s3"></div>
+      <div class="stylo s4"></div>
+    </div>
+    <div class="pot"></div>
+  </div>
+
+  <!-- ── Livre / Manuel ── -->
+  <div class="livre">
+    <div class="livre-couv">
+      <div class="livre-dos"></div>
+      <div class="livre-titre">
+        <div class="l1">AMLI</div>
+        <div class="l2">Guide pédagogique<br/>du CEC 2025–2026</div>
+      </div>
+      <div class="livre-deco"></div>
+    </div>
+  </div>
+
+  <!-- ── Post-its ── -->
+  <div class="postit postit-jaune">
+    <strong>⚠️ À faire :</strong>
+    Corriger examens MAT-4102<br/>
+    avant vendredi !
+  </div>
+  <div class="postit postit-rose">
+    <strong>📞 Rappeler :</strong>
+    M. Tremblay (parent)<br/>
+    514-555-0192
+  </div>
+
+  <!-- ── Feuilles ── -->
+  <div class="feuille feuille-1">
+    <div class="feuille-titre">Liste de présences – FRA-5101</div>
+    <div class="feuille-case"><div class="checkbox coche"></div><span>Ahmed B.</span></div>
+    <div class="feuille-case"><div class="checkbox coche"></div><span>Maria G.</span></div>
+    <div class="feuille-case"><div class="checkbox"></div><span>Jean-Paul T.</span></div>
+    <div class="feuille-case"><div class="checkbox coche"></div><span>Fatima Z.</span></div>
+    <div class="feuille-case"><div class="checkbox coche"></div><span>Lucas D.</span></div>
+    <div class="feuille-case"><div class="checkbox"></div><span>Nguyen T.L.</span></div>
+  </div>
+
+  <div class="feuille feuille-2">
+    <h5>CEC Amli – Évaluation</h5>
+    <div class="feuille-ligne long"></div>
+    <div class="feuille-ligne court"></div>
+    <div class="feuille-ligne long"></div>
+    <div class="feuille-ligne court"></div>
+    <div class="feuille-ligne long"></div>
+    <div class="feuille-ligne long"></div>
+    <div class="feuille-ligne court"></div>
+    <div class="feuille-ligne long"></div>
+  </div>
+
+  <!-- ── Règle ── -->
+  <div class="regle">
+    <div class="regle-marque">CEC</div>
+    <div class="regle-tirets">
+      <div class="tiret"></div><div class="tiret"></div><div class="tiret"></div>
+      <div class="tiret"></div><div class="tiret"></div><div class="tiret"></div>
+      <div class="tiret"></div><div class="tiret"></div><div class="tiret"></div>
+      <div class="tiret"></div><div class="tiret"></div><div class="tiret"></div>
+      <div class="tiret"></div><div class="tiret"></div><div class="tiret"></div>
+      <div class="tiret"></div><div class="tiret"></div>
+    </div>
+  </div>
+
+  <!-- ── Téléphone ── -->
+  <div class="telephone">
+    <div class="tel-corps">
+      <div class="tel-ecran">
+        <div class="tel-heure">09:42</div>
+        <div class="tel-date">Lun 16 juin 2026</div>
+      </div>
+      <div class="tel-notif">3</div>
+    </div>
+  </div>
+
+  <!-- ── Calculatrice ── -->
+  <div class="calculatrice">
+    <div class="calc-ecran">247.5</div>
+    <div class="calc-touches">
+      <div class="calc-btn op">C</div>
+      <div class="calc-btn op">±</div>
+      <div class="calc-btn op">%</div>
+      <div class="calc-btn op">÷</div>
+      <div class="calc-btn">7</div>
+      <div class="calc-btn">8</div>
+      <div class="calc-btn">9</div>
+      <div class="calc-btn op">×</div>
+      <div class="calc-btn">4</div>
+      <div class="calc-btn">5</div>
+      <div class="calc-btn">6</div>
+      <div class="calc-btn op">−</div>
+      <div class="calc-btn">1</div>
+      <div class="calc-btn">2</div>
+      <div class="calc-btn">3</div>
+      <div class="calc-btn op">+</div>
+      <div class="calc-btn" style="grid-column:span 2">0</div>
+      <div class="calc-btn">.</div>
+      <div class="calc-btn eq">=</div>
+    </div>
+  </div>
+
+  <!-- ── Clés ── -->
+  <div class="cles">
+    <div class="cle-porte-cles"></div>
+    <div class="cle"></div>
+    <div class="cle"></div>
+  </div>
+
+  <!-- ── Punaises décoratives ── -->
+  <div class="punaise" style="background:#ef4444; left:85px; top:38px;"></div>
+  <div class="punaise" style="background:#3b82f6; left:95px; top:36px;"></div>
+
+  <!-- Bandeau bas -->
+  <div class="bandeau">Centre d'Éducation Continue · Amli · 2025–2026</div>
+
+</div>
+
+</body>
+</html>
