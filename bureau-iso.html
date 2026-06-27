@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>AMLI / CEC — Infrastructure bureau (Aliam)</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0e27;display:flex;flex-direction:column;align-items:center;overflow:hidden;height:100vh}
+h1{color:#00d4ff;font:700 13px/32px monospace;letter-spacing:3px;text-shadow:0 0 14px #00d4ff88;flex-shrink:0}
+canvas{display:block;cursor:crosshair}
+#tip{
+  position:fixed;display:none;background:rgba(5,8,28,0.97);
+  border:1px solid #00d4ff55;color:#c8e8ff;padding:9px 13px;
+  border-radius:5px;font:11px/1.65 monospace;pointer-events:none;z-index:99;
+  box-shadow:0 0 18px #00d4ff33;max-width:240px
+}
+#tip b{color:#00d4ff}  #tip .ip{color:#f90}  #tip .rl{color:#7cf}
+#leg{
+  position:fixed;bottom:14px;left:16px;background:rgba(5,8,28,0.92);
+  border:1px solid #223;color:#889;padding:9px 14px;border-radius:6px;font:10px/1.9 monospace
+}
+#leg b{color:#00d4ff;display:block;margin-bottom:2px}
+</style>
+</head>
+<body>
+<h1>🖧 AMLI / CEC — Infrastructure bureau (Aliam)</h1>
+<canvas id="c"></canvas>
+<div id="tip"></div>
+<div id="leg">
+  <b>LÉGENDE</b>
+  <span style="color:#4af">━━</span> LAN (câble)<br>
+  <span style="color:#f90">┅┅</span> VPN / L2TP<br>
+  <span style="color:#0f9">┅┅</span> Tailscale / Backup chiffré
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  CONFIG — tous les paramètres modifiables ici
+// ═══════════════════════════════════════════════════════
+const CFG = {
+  NB_POSTES : 5,          // Nombre de postes Windows (1–6)
+
+  CW : 1380, CH : 790,    // Dimensions canvas
+  OX : 690, OY : 105,     // Origine isométrique (écran)
+  TW : 64,  TH : 32,      // Tuile iso 2:1
+  WH : 108,               // Hauteur des murs (pixels)
+
+  COLS : 14, ROWS : 10,   // Dimensions de la salle (tuiles)
+
+  COL : {
+    bg      : '#0a0e27',
+    sol_a   : '#9B7B50',   // parquet clair
+    sol_b   : '#7A5E38',   // parquet sombre
+    mur_win : '#0c1e42',   // verre nuit
+    mur_fr  : '#0d1a36',
+    neon    : '#00d4ff',
+    // bureau
+    bt:'#8B6F47', bl:'#654E30', br:'#433219',
+    // rack
+    rt:'#23304a', rl:'#151f30', rr:'#0a1020',
+    // NAS
+    nt:'#1a2e5a', nl:'#0f1e3a', nr:'#07101e',
+    // routeur
+    gt:'#1e4a38', gl:'#122e22', gr:'#09180f',
+    // poste
+    pt:'#28405a', pl:'#182838', pr:'#0c1820',
+    // misc
+    mt:'#3a3a44', ml:'#24242e', mr:'#14141c',
+  },
+
+  // IPs centralisées
+  IP : {
+    mikrotik  : '192.168.1.254',
+    proximus  : 'WAN / Bridge',
+    rack      : '192.168.1.236',
+    nas_main  : '192.168.1.2',
+    nas_bkp   : '192.168.1.23',
+    dect      : 'SIP / Letsconnect',
+    printer   : '192.168.1.29',
+    easypay_c : '217.181.251.250',
+    vps_ovh   : '141.94.92.19',
+    tailscale : 'Tailscale / WireGuard',
+    backup    : 'Hyper Backup AES-256',
+  }
+};
+
+// ═══════════════════════════════════════════════════════
+//  ÉQUIPEMENTS — grille isométrique
+// ═══════════════════════════════════════════════════════
+const EQ = [
+  { id:'mikrotik', col:6,    row:4,   w:1,   d:1,   h:22,
+    lbl:'MikroTik\nhAP ac²',  ip:CFG.IP.mikrotik,
+    role:'Routeur central LAN/WAN\nGateway réseau bureau AMLI/CEC',
+    c:{t:CFG.COL.gt,l:CFG.COL.gl,r:CFG.COL.gr}, ico:'🔀' },
+
+  { id:'proximus', col:1,    row:1.5, w:1.5, d:1,   h:32,
+    lbl:'Box Proximus\n(ONT Nokia + Bbox)', ip:CFG.IP.proximus,
+    role:'Fibre Proximus en mode bridge\nONT Nokia + Bbox → MikroTik (WAN)',
+    c:{t:'#3a2860',l:'#241a40',r:'#140e24'}, ico:'🌐' },
+
+  { id:'rack', col:11.5, row:1.5, w:1.5, d:2,   h:72,
+    lbl:'Rack AlmaLinux 10\nAMLIPRO-EASYPAY', ip:CFG.IP.rack,
+    role:'Serveur rack AlmaLinux 10\nApache + EasyPay (paie)\nAMLIPRO-EASYPAY',
+    c:{t:CFG.COL.rt,l:CFG.COL.rl,r:CFG.COL.rr}, ico:'🖥' },
+
+  { id:'nas_main', col:11.5, row:4.2, w:1.2, d:1,   h:36,
+    lbl:'NAS Synology\n(Principal)', ip:CFG.IP.nas_main,
+    role:'NAS Synology principal\nDonnées AMLI/CEC\nTailscale → Accès distant Aliam',
+    c:{t:CFG.COL.nt,l:CFG.COL.nl,r:CFG.COL.nr}, ico:'💾' },
+
+  { id:'nas_bkp', col:11.5, row:6,   w:1.2, d:1,   h:36,
+    lbl:'NAS Synology\nBackup CEC/COMPTA_BXL', ip:CFG.IP.nas_bkp,
+    role:'NAS Synology sauvegarde\nCEC / COMPTA_BXL\nHyper Backup → AES-256',
+    c:{t:'#162848',l:'#0e1a2e',r:'#060e18'}, ico:'💿' },
+
+  { id:'dect', col:2,    row:6.5, w:0.8, d:0.8, h:26,
+    lbl:'DECT\nYealink W70B', ip:CFG.IP.dect,
+    role:'Base DECT Yealink W70B\nTéléphonie VoIP via Letsconnect',
+    c:{t:'#3a4438',l:'#242c24',r:'#141810'}, ico:'📞' },
+
+  { id:'printer', col:4,    row:8.5, w:1.5, d:1,   h:28,
+    lbl:'Imprimante\nRicoh', ip:CFG.IP.printer,
+    role:'Imprimante réseau Ricoh\nPartagée sur LAN AMLI/CEC',
+    c:{t:'#484030',l:'#303020',r:'#1a1810'}, ico:'🖨' },
+];
+
+// Positions des postes Windows
+const POSTES_CFG = [
+  { col:3,   row:4.5, lbl:'AMLIPRO-1\n(Expert/M)',  role:'PC Windows AMLI\nLogiciel Expert/M — comptabilité CEC' },
+  { col:5,   row:4.5, lbl:'AMLIPRO-2\n(EasyPay)',   role:'PC Windows AMLI\nLogiciel EasyPay — gestion des paies' },
+  { col:3,   row:7,   lbl:'CEC-PC-1',               role:'Poste utilisateur Windows CEC' },
+  { col:5,   row:7,   lbl:'CEC-PC-2',               role:'Poste utilisateur Windows CEC' },
+  { col:6.5, row:6.5, lbl:'AMLIPRO-3',              role:'Poste Windows AMLI — usage général' },
+  { col:2,   row:3.5, lbl:'CEC-PC-3',               role:'Poste utilisateur Windows CEC' },
+];
+
+for(let i=0;i<Math.min(CFG.NB_POSTES,POSTES_CFG.length);i++){
+  const p=POSTES_CFG[i];
+  EQ.push({
+    id:`pc${i}`, col:p.col, row:p.row, w:1, d:0.8, h:14,
+    lbl:p.lbl, ip:`192.168.1.${10+i}`,
+    role:p.role,
+    c:{t:CFG.COL.pt,l:CFG.COL.pl,r:CFG.COL.pr}, ico:'💻'
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+//  NUAGES EXTERNES (coordonnées écran directes)
+// ═══════════════════════════════════════════════════════
+const CLOUDS = [
+  { id:'easypay_c', sx:110, sy:110, w:155, h:64,
+    lbl:'EasyPay GROUP', ip:CFG.IP.easypay_c,
+    role:'Serveur EasyPay distant\nTunnel L2TP depuis MikroTik',
+    col:'#2a1848' },
+
+  { id:'vps_ovh', sx:290, sy:80, w:150, h:64,
+    lbl:'VPS OVH\n(RustDesk)', ip:CFG.IP.vps_ovh,
+    role:'VPS OVH — RustDesk relay\nAccès bureau à distance sécurisé',
+    col:'#2a1408' },
+
+  { id:'tailscale', sx:1060, sy:88, w:165, h:64,
+    lbl:'Accès distant\nAliam', ip:CFG.IP.tailscale,
+    role:'Accès distant chiffré\nTailscale (WireGuard) depuis NAS principal',
+    col:'#083028' },
+
+  { id:'backup', sx:1100, sy:200, w:158, h:60,
+    lbl:'Backup AES-256\n(Hyper Backup)', ip:CFG.IP.backup,
+    role:'Sauvegarde chiffrée AES-256\nSynology Hyper Backup — NAS secondaire',
+    col:'#082820' },
+];
+
+// ═══════════════════════════════════════════════════════
+//  CANVAS + CTX
+// ═══════════════════════════════════════════════════════
+const cv = document.getElementById('c');
+cv.width=CFG.CW; cv.height=CFG.CH;
+const cx = cv.getContext('2d');
+cx.imageSmoothingEnabled=false;
+
+// ── Projection isométrique ──────────────────────────
+function iso(col,row,h=0){
+  return {
+    x: CFG.OX + (col-row)*CFG.TW/2,
+    y: CFG.OY + (col+row)*CFG.TH/2 - h
+  };
+}
+
+// ── Polygone rempli ─────────────────────────────────
+function poly(pts,fill,stroke,lw=1){
+  cx.beginPath();
+  cx.moveTo(pts[0].x,pts[0].y);
+  for(let i=1;i<pts.length;i++) cx.lineTo(pts[i].x,pts[i].y);
+  cx.closePath();
+  if(fill){cx.fillStyle=fill;cx.fill()}
+  if(stroke){cx.strokeStyle=stroke;cx.lineWidth=lw;cx.stroke()}
+}
+
+// ── Rect arrondi ────────────────────────────────────
+function rrect(x,y,w,h,r){
+  cx.beginPath();
+  cx.moveTo(x+r,y);cx.lineTo(x+w-r,y);cx.arcTo(x+w,y,x+w,y+r,r);
+  cx.lineTo(x+w,y+h-r);cx.arcTo(x+w,y+h,x+w-r,y+h,r);
+  cx.lineTo(x+r,y+h);cx.arcTo(x,y+h,x,y+h-r,r);
+  cx.lineTo(x,y+r);cx.arcTo(x,y,x+r,y,r);
+  cx.closePath();
+}
+
+// ═══════════════════════════════════════════════════════
+//  SOL PARQUET
+// ═══════════════════════════════════════════════════════
+function drawFloor(){
+  for(let r=0;r<CFG.ROWS;r++){
+    for(let c=0;c<CFG.COLS;c++){
+      poly(
+        [iso(c,r),iso(c+1,r),iso(c+1,r+1),iso(c,r+1)],
+        (c+r)%2===0?CFG.COL.sol_a:CFG.COL.sol_b,
+        'rgba(0,0,0,0.25)',0.4
+      );
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  MURS VITRÉS + SKYLINE NUIT
+// ═══════════════════════════════════════════════════════
+// Dessine un panneau de mur avec skyline nocturne clippé
+function wallPanel(pts4, panelIdx){
+  cx.save();
+  // Clip sur le panneau
+  cx.beginPath();
+  cx.moveTo(pts4[0].x,pts4[0].y);
+  for(let i=1;i<4;i++) cx.lineTo(pts4[i].x,pts4[i].y);
+  cx.closePath();
+  cx.clip();
+
+  // Fond verre nuit
+  cx.fillStyle=CFG.COL.mur_win;
+  cx.fill();
+
+  // Skyline — silhouettes d'immeubles
+  const bx = Math.min(...pts4.map(p=>p.x));
+  const by = Math.min(...pts4.map(p=>p.y));
+  const bw = Math.max(...pts4.map(p=>p.x))-bx;
+  const bh = Math.max(...pts4.map(p=>p.y))-by;
+
+  // Ciel profond
+  cx.fillStyle='#04071a'; cx.fillRect(bx,by,bw,bh);
+
+  // Étoiles
+  cx.fillStyle='rgba(255,255,255,0.55)';
+  const seed=panelIdx*137;
+  for(let s=0;s<6;s++){
+    const sx2=(seed*17+s*73)%bw;
+    const sy2=(seed*11+s*41)%( bh*0.4);
+    cx.fillRect(bx+sx2,by+sy2,1,1);
+  }
+
+  // Immeubles silhouette
+  const nbBat=4;
+  const bwu=bw/nbBat;
+  const hFactors=[0.55,0.75,0.45,0.65];
+  for(let b=0;b<nbBat;b++){
+    const bh2=bh*hFactors[(b+panelIdx)%4];
+    cx.fillStyle='#0c1530';
+    cx.fillRect(bx+b*bwu+1, by+bh-bh2, bwu-2, bh2);
+    // Fenêtres immeuble
+    for(let wc=0;wc<3;wc++) for(let wr=0;wr<5;wr++){
+      if(((b+panelIdx)*7+wc*3+wr*5)%3!==0){
+        cx.fillStyle=((b+wc+wr+panelIdx)%3===0)?'#ffe880':'#4a80ff';
+        cx.fillRect(bx+b*bwu+4+wc*(bwu/3.5), by+bh-bh2+6+wr*(bh2/6), bwu/4.5, bh/8);
+      }
+    }
+  }
+
+  cx.restore();
+
+  // Cadre du panneau
+  poly(pts4,null,'#1a3a6a',0.8);
+}
+
+function drawWalls(){
+  const WH=CFG.WH, C=CFG.COLS, R=CFG.ROWS;
+
+  // — Mur arrière (row=0) — de gauche à droite
+  for(let c=0;c<C;c++){
+    wallPanel([iso(c,0,WH),iso(c+1,0,WH),iso(c+1,0,0),iso(c,0,0)],c);
+  }
+
+  // — Mur gauche (col=0) — de l'arrière vers l'avant
+  for(let r=0;r<R;r++){
+    wallPanel([iso(0,r,WH),iso(0,r+1,WH),iso(0,r+1,0),iso(0,r,0)],r+100);
+  }
+
+  // — Néons au plafond —
+  cx.save();
+  for(let n=0;n<4;n++){
+    const cc=2+n*3;
+    const a=iso(cc,0,WH+2), b=iso(cc,R,WH+2);
+    cx.strokeStyle='#a0f0ff'; cx.lineWidth=1.5;
+    cx.shadowBlur=14; cx.shadowColor=CFG.COL.neon;
+    cx.beginPath(); cx.moveTo(a.x,a.y); cx.lineTo(b.x,b.y); cx.stroke();
+  }
+  cx.shadowBlur=0; cx.restore();
+}
+
+// ═══════════════════════════════════════════════════════
+//  BOÎTE ISOMÉTRIQUE
+// ═══════════════════════════════════════════════════════
+function drawBox(e){
+  const {col:c,row:r,w,d,h,c:cl}=e;
+  // Face droite (est)
+  poly([iso(c+w,r,h),iso(c+w,r+d,h),iso(c+w,r+d,0),iso(c+w,r,0)],cl.r,'rgba(0,0,0,0.35)',0.5);
+  // Face avant (sud)
+  poly([iso(c,r+d,h),iso(c+w,r+d,h),iso(c+w,r+d,0),iso(c,r+d,0)],cl.l,'rgba(0,0,0,0.35)',0.5);
+  // Face supérieure
+  poly([iso(c,r,h),iso(c+w,r,h),iso(c+w,r+d,h),iso(c,r+d,h)],cl.t,'rgba(0,0,0,0.25)',0.4);
+  // Icône
+  const ce=iso(c+w/2,r+d/2,h+2);
+  cx.save();
+  cx.font=`${Math.min(h*0.9,18)}px serif`;
+  cx.textAlign='center'; cx.textBaseline='bottom';
+  cx.fillText(e.ico,ce.x,ce.y+2);
+  cx.restore();
+}
+
+// ═══════════════════════════════════════════════════════
+//  LABEL FLOTTANT
+// ═══════════════════════════════════════════════════════
+function drawLabel(e){
+  const p=iso(e.col+e.w/2, e.row+e.d/2, e.h+10);
+  cx.save();
+  cx.textAlign='center'; cx.textBaseline='bottom';
+  const lines=e.lbl.split('\n');
+  const fw=Math.max(...lines.map(l=>l.length))*5.8+16;
+  const fh=lines.length*12+14;
+  const fx=p.x-fw/2, fy=p.y-fh-2;
+  // Fond
+  cx.fillStyle='rgba(6,10,28,0.88)';
+  rrect(fx,fy,fw,fh,4); cx.fill();
+  cx.strokeStyle='rgba(0,212,255,0.3)'; cx.lineWidth=0.7; cx.stroke();
+  // Lignes de texte
+  cx.fillStyle='#b8dcf4'; cx.font='bold 8.5px monospace';
+  lines.forEach((l,i)=>cx.fillText(l,p.x,fy+11+(i+1)*12));
+  // IP
+  cx.fillStyle='#00d4ff'; cx.font='7.5px monospace';
+  cx.fillText(e.ip,p.x,p.y-2);
+  cx.restore();
+}
+
+// ═══════════════════════════════════════════════════════
+//  CÂBLES RÉSEAU
+// ═══════════════════════════════════════════════════════
+function cable(a,b,col,dashed,lw=1.5){
+  const fa=iso(a.col+a.w/2,a.row+a.d/2,a.h);
+  const fb=iso(b.col+b.w/2,b.row+b.d/2,b.h);
+  // Point de coude isométrique
+  const mx=iso(a.col+a.w/2,b.row+b.d/2,Math.max(a.h,b.h)*0.5+4);
+  cx.save();
+  cx.strokeStyle=col; cx.lineWidth=lw;
+  cx.shadowBlur=5; cx.shadowColor=col;
+  if(dashed) cx.setLineDash([6,4]);
+  cx.beginPath(); cx.moveTo(fa.x,fa.y); cx.lineTo(mx.x,mx.y); cx.lineTo(fb.x,fb.y); cx.stroke();
+  cx.setLineDash([]); cx.shadowBlur=0;
+  cx.restore();
+}
+
+function cableToCloud(e,cl,col,lw=1.5){
+  const from=iso(e.col+e.w/2,e.row+e.d/2,e.h+4);
+  const to={x:cl.sx+cl.w/2,y:cl.sy+cl.h/2};
+  cx.save();
+  cx.strokeStyle=col; cx.lineWidth=lw;
+  cx.shadowBlur=7; cx.shadowColor=col;
+  cx.setLineDash([7,5]);
+  cx.beginPath(); cx.moveTo(from.x,from.y); cx.lineTo(to.x,to.y); cx.stroke();
+  cx.setLineDash([]); cx.shadowBlur=0;
+  cx.restore();
+}
+
+// ═══════════════════════════════════════════════════════
+//  NUAGES EXTERNES
+// ═══════════════════════════════════════════════════════
+function drawCloud(cl){
+  cx.save();
+  cx.fillStyle=cl.col;
+  rrect(cl.sx,cl.sy,cl.w,cl.h,8); cx.fill();
+  cx.strokeStyle='rgba(0,212,255,0.45)'; cx.lineWidth=1; cx.stroke();
+  // Icône
+  cx.font='18px serif'; cx.fillStyle='rgba(255,255,255,0.15)';
+  cx.fillText('☁',cl.sx+7,cl.sy+22);
+  // Label
+  cx.fillStyle='#90c8e8'; cx.font='bold 9.5px monospace';
+  const ll=cl.lbl.split('\n');
+  ll.forEach((l,i)=>cx.fillText(l,cl.sx+32,cl.sy+14+i*13));
+  // IP
+  cx.fillStyle='#00d4ff'; cx.font='8px monospace';
+  cx.fillText(cl.ip,cl.sx+8,cl.sy+cl.h-6);
+  cx.restore();
+}
+
+// ═══════════════════════════════════════════════════════
+//  RENDU PRINCIPAL
+// ═══════════════════════════════════════════════════════
+// Tri painter's algo : col+row croissant → arrière vers avant
+const SORTED_EQ=[...EQ].sort((a,b)=>(a.col+a.row)-(b.col+b.row));
+
+function render(){
+  cx.clearRect(0,0,CFG.CW,CFG.CH);
+  // Fond
+  cx.fillStyle=CFG.COL.bg; cx.fillRect(0,0,CFG.CW,CFG.CH);
+
+  // Murs vitrés + skyline
+  drawWalls();
+
+  // Sol parquet
+  drawFloor();
+
+  // Nuages (arrière-plan externe)
+  CLOUDS.forEach(drawCloud);
+
+  // ── Câbles LAN (cyan, plein) ──
+  const gid=id=>EQ.find(e=>e.id===id);
+  const mk=gid('mikrotik');
+  ['proximus','rack','nas_main','nas_bkp','dect','printer'].forEach(id=>{
+    cable(mk,gid(id),'#4aaeff',false);
+  });
+  for(let i=0;i<CFG.NB_POSTES;i++) cable(mk,gid(`pc${i}`),'#4aaeff',false,1);
+
+  // ── Liens L2TP / VPN (orange, pointillé) ──
+  const cloud=id=>CLOUDS.find(c=>c.id===id);
+  cableToCloud(mk,cloud('easypay_c'),'#f90');
+  cableToCloud(mk,cloud('vps_ovh'),'#f90');
+
+  // ── Liens chiffrés (vert, pointillé) ──
+  cableToCloud(gid('nas_main'),cloud('tailscale'),'#0f9');
+  cableToCloud(gid('nas_bkp'),cloud('backup'),'#0f9');
+
+  // ── Équipements + labels ──
+  SORTED_EQ.forEach(e=>{ drawBox(e); drawLabel(e); });
+}
+
+// ═══════════════════════════════════════════════════════
+//  INTERACTIVITÉ — infobulle
+// ═══════════════════════════════════════════════════════
+const tip=document.getElementById('tip');
+
+function hovered(mx,my){
+  for(const e of EQ){
+    const p=iso(e.col+e.w/2,e.row+e.d/2,e.h);
+    const dx=mx-p.x,dy=my-p.y;
+    if(dx*dx+dy*dy<38*38) return e;
+  }
+  for(const cl of CLOUDS){
+    if(mx>=cl.sx&&mx<=cl.sx+cl.w&&my>=cl.sy&&my<=cl.sy+cl.h) return cl;
+  }
+  return null;
+}
+
+cv.addEventListener('mousemove',e=>{
+  const r=cv.getBoundingClientRect();
+  const sx=CFG.CW/r.width, sy=CFG.CH/r.height;
+  const mx=(e.clientX-r.left)*sx, my=(e.clientY-r.top)*sy;
+  const h=hovered(mx,my);
+  if(h){
+    const nm=(h.lbl||h.id).replace(/\n/g,'<br>');
+    tip.innerHTML=`<b>${nm}</b><br><span class="ip">${h.ip||''}</span><br><span class="rl">${(h.role||'').replace(/\n/g,'<br>')}</span>`;
+    tip.style.display='block';
+    tip.style.left=(e.clientX+16)+'px';
+    tip.style.top=(e.clientY+8)+'px';
+    cv.style.cursor='pointer';
+  } else {
+    tip.style.display='none';
+    cv.style.cursor='crosshair';
+  }
+});
+cv.addEventListener('mouseleave',()=>{tip.style.display='none'});
+
+// ── Responsivité ───────────────────────────────────────
+function resize(){
+  const s=Math.min(window.innerWidth/CFG.CW,(window.innerHeight-34)/CFG.CH);
+  cv.style.width=(CFG.CW*s)+'px';
+  cv.style.height=(CFG.CH*s)+'px';
+}
+window.addEventListener('resize',resize);
+resize();
+render();
+</script>
+</body>
+</html>
